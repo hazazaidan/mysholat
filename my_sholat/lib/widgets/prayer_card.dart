@@ -36,10 +36,10 @@ class PrayerCard extends StatelessWidget {
         margin: const EdgeInsets.symmetric(vertical: 4),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         decoration: BoxDecoration(
-          color: isActive ? AppColors.bgCardActive : AppColors.bgCard,
+          color: isActive ? AppColors.bg(context, active: true) : AppColors.bg(context, card: true),
           borderRadius: BorderRadius.circular(AppDimensions.radiusMd),
           border: Border.all(
-            color: isActive ? AppColors.bgCardBorderActive : AppColors.bgCardBorder,
+            color: isActive ? AppColors.border(context, active: true) : AppColors.border(context),
             width: isActive ? 1.5 : 1,
           ),
         ),
@@ -48,34 +48,34 @@ class PrayerCard extends StatelessWidget {
             Container(
               width: 36, height: 36,
               decoration: BoxDecoration(
-                color: isActive ? AppColors.primary : AppColors.bgCardBorder,
+                color: isActive ? AppColors.primary : AppColors.border(context),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Icon(_icon,
-                color: isActive ? Colors.white : AppColors.primary,
-                size: 18),
+                  color: isActive ? Colors.white : AppColors.primary,
+                  size: 18),
             ),
             const SizedBox(width: 12),
             Expanded(
               child: Text(prayer.name,
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: isActive ? FontWeight.w600 : FontWeight.w500,
-                  color: isActive ? AppColors.primary : AppColors.textSecondary,
-                )),
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: isActive ? FontWeight.w600 : FontWeight.w500,
+                    color: isActive ? AppColors.primary : AppColors.text(context, level: 'secondary'),
+                  )),
             ),
             Text(prayer.time,
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
-                color: isActive ? AppColors.primary : AppColors.textHint,
-              )),
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
+                  color: isActive ? AppColors.primary : AppColors.text(context, level: 'hint'),
+                )),
             if (showStatus) ...[
               const SizedBox(width: 10),
               _StatusBadge(isDone: prayer.isDone, isNext: prayer.isNext),
             ] else ...[
               const SizedBox(width: 10),
-              _CheckCircle(isDone: prayer.isDone),
+              _CheckCircle(isDone: prayer.isDone, context: context),
             ],
           ],
         ),
@@ -86,7 +86,8 @@ class PrayerCard extends StatelessWidget {
 
 class _CheckCircle extends StatelessWidget {
   final bool isDone;
-  const _CheckCircle({required this.isDone});
+  final BuildContext context;
+  const _CheckCircle({required this.isDone, required this.context});
 
   @override
   Widget build(BuildContext context) => AnimatedContainer(
@@ -96,8 +97,8 @@ class _CheckCircle extends StatelessWidget {
       shape: BoxShape.circle,
       color: isDone ? AppColors.primary : Colors.transparent,
       border: Border.all(
-        color: isDone ? AppColors.primary : AppColors.bgCardBorderActive,
-        width: 1.5),
+          color: isDone ? AppColors.primary : AppColors.border(context, active: true),
+          width: 1.5),
     ),
     child: isDone
         ? const Icon(Icons.check_rounded, color: Colors.white, size: 13)
@@ -122,13 +123,15 @@ class _StatusBadge extends StatelessWidget {
       bg = AppColors.primary.withValues(alpha: 0.15);
       fg = AppColors.primary;
     } else {
-      label = 'Belum'; bg = AppColors.bgCardBorder; fg = AppColors.textHint;
+      label = 'Belum';
+      bg = AppColors.border(context);
+      fg = AppColors.text(context, level: 'hint');
     }
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(20)),
       child: Text(label,
-        style: TextStyle(fontSize: 10, color: fg, fontWeight: FontWeight.w600)),
+          style: TextStyle(fontSize: 10, color: fg, fontWeight: FontWeight.w600)),
     );
   }
 }

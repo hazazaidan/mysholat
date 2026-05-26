@@ -2,28 +2,72 @@
 import 'package:flutter/material.dart';
 
 class AppColors {
-  // Kembalikan ke const — dynamic color dihandle via Theme, bukan static field
-  static const Color primary      = Color(0xFF10B981);
-  static const Color primaryDark  = Color(0xFF059669);
-  static const Color primaryLight = Color(0xFF34D399);
+  // ── Primary ──
+  static const Color primary      = Color(0xFF16A34A);
+  static const Color primaryDark  = Color(0xFF15803D);
+  static const Color primaryLight = Color(0xFF22C55E);
 
-  static const Color bgDeep             = Color(0xFF0A0F0A);
-  static const Color bgMain             = Color(0xFF0D1A0F);
-  static const Color bgCard             = Color(0xFF0F1A0F);
-  static const Color bgCardActive       = Color(0xFF0F2A1A);
-  static const Color bgCardBorder       = Color(0xFF1E3A2A);
-  static const Color bgCardBorderActive = Color(0xFF1E5A34);
+  // ── Light Mode Backgrounds ──
+  static const Color bgDeep             = Color(0xFFF0F4F1);
+  static const Color bgMain             = Color(0xFFFFFFFF);
+  static const Color bgCard             = Color(0xFFFFFFFF);
+  static const Color bgCardActive       = Color(0xFFDCFCE7);
+  static const Color bgCardBorder       = Color(0xFFE2E8F0);
+  static const Color bgCardBorderActive = Color(0xFFBBF7D0);
 
-  static const Color textPrimary   = Color(0xFFFFFFFF);
-  static const Color textSecondary = Color(0xFFD4E8DC);
-  static const Color textMuted     = Color(0xFF9AB8A8);
-  static const Color textHint      = Color(0xFF6B9E7A);
-  static const Color textFaint     = Color(0xFF4A7A5A);
+  // ── Light Mode Text ──
+  static const Color textPrimary   = Color(0xFF0F172A);
+  static const Color textSecondary = Color(0xFF334155);
+  static const Color textMuted     = Color(0xFF64748B);
+  static const Color textHint      = Color(0xFF94A3B8);
+  static const Color textFaint     = Color(0xFFCBD5E1);
 
-  static const Color success = Color(0xFF10B981);
+  // ── Dark Mode Backgrounds ──
+  static const Color darkBgDeep             = Color(0xFF0A0F0C);
+  static const Color darkBgMain             = Color(0xFF111712);
+  static const Color darkBgCard             = Color(0xFF1A2420);
+  static const Color darkBgCardActive       = Color(0xFF14291E);
+  static const Color darkBgCardBorder       = Color(0xFF243028);
+  static const Color darkBgCardBorderActive = Color(0xFF2D5C3A);
+
+  // ── Dark Mode Text ──
+  static const Color darkTextPrimary   = Color(0xFFF1F5F9);
+  static const Color darkTextSecondary = Color(0xFFCBD5E1);
+  static const Color darkTextMuted     = Color(0xFF94A3B8);
+  static const Color darkTextHint      = Color(0xFF64748B);
+  static const Color darkTextFaint     = Color(0xFF334155);
+
+  // ── Semantic ──
+  static const Color success = Color(0xFF16A34A);
   static const Color warning = Color(0xFFCA8A04);
   static const Color error   = Color(0xFFEF4444);
-  static const Color info    = Color(0xFF6EC8F0);
+  static const Color info    = Color(0xFF0369A1);
+
+  // ── Context-aware helpers ──
+  static Color bg(BuildContext context, {bool card = false, bool active = false}) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    if (active) return dark ? darkBgCardActive : bgCardActive;
+    if (card)   return dark ? darkBgCard       : bgCard;
+    return dark ? darkBgDeep : bgDeep;
+  }
+
+  static Color border(BuildContext context, {bool active = false}) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    return active
+        ? (dark ? darkBgCardBorderActive : bgCardBorderActive)
+        : (dark ? darkBgCardBorder       : bgCardBorder);
+  }
+
+  static Color text(BuildContext context, {String level = 'primary'}) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    switch (level) {
+      case 'secondary': return dark ? darkTextSecondary : textSecondary;
+      case 'muted':     return dark ? darkTextMuted     : textMuted;
+      case 'hint':      return dark ? darkTextHint      : textHint;
+      case 'faint':     return dark ? darkTextFaint     : textFaint;
+      default:          return dark ? darkTextPrimary   : textPrimary;
+    }
+  }
 }
 
 class AppStrings {

@@ -3,7 +3,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart' show Color;
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/timezone.dart' as tz;
-import 'package:timezone/data/latest.dart' as tzData;
+import 'package:timezone/data/latest.dart' as tz_data;
 import '../models/prayer_model.dart';
 
 class NotificationService {
@@ -14,40 +14,83 @@ class NotificationService {
   final _plugin = FlutterLocalNotificationsPlugin();
   bool _initialized = false;
 
+  // Pola getar: 0ms jeda → getar 800ms → jeda 300ms → getar 800ms → jeda 300ms → getar 800ms
+  static final Int64List _vibrationPattern =
+      Int64List.fromList([0, 800, 300, 800, 300, 800]);
+
+  // Channel ID v2 — fresh, tidak terpengaruh channel lama
+  static const String _prayerChannelId   = 'prayer_channel_v2';
+  static const String _reminderChannelId = 'prayer_reminder_channel_v2';
+
   Future<void> init() async {
     if (_initialized) return;
-    tzData.initializeTimeZones();
+    tz_data.initializeTimeZones();
     tz.setLocalLocation(tz.getLocation('Asia/Jakarta'));
 
     const android = AndroidInitializationSettings('@mipmap/ic_launcher');
     const ios = DarwinInitializationSettings(
       requestAlertPermission: true,
       requestBadgePermission: true,
-      requestSoundPermission: true,
+      requestSoundPermission: false,
     );
     await _plugin.initialize(
       const InitializationSettings(android: android, iOS: ios),
     );
+
+    await _createNotificationChannel();
     _initialized = true;
   }
 
-  // Auto-detect WIB / WITA / WIT dari longitude
+  Future<void> _createNotificationChannel() async {
+    final androidPlugin = _plugin
+        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+    if (androidPlugin == null) return;
+
+    // Hapus channel lama agar tidak ada konflik setting
+    await androidPlugin.deleteNotificationChannel('prayer_channel');
+    await androidPlugin.deleteNotificationChannel('prayer_reminder_channel');
+
+    // Buat channel baru dengan vibration only
+    final prayerChannel = AndroidNotificationChannel(
+      _prayerChannelId,
+      'Pengingat Sholat',
+      description: 'Notifikasi waktu sholat MySholat (getar saja)',
+      importance: Importance.high,
+      playSound: false,
+      enableVibration: true,
+      vibrationPattern: _vibrationPattern,
+      enableLights: true,
+      ledColor: const Color(0xFF10B981),
+    );
+
+    const reminderChannel = AndroidNotificationChannel(
+      _reminderChannelId,
+      'Pengingat Sholat Berikutnya',
+      description: 'Notifikasi countdown sholat berikutnya',
+      importance: Importance.low,
+      playSound: false,
+      enableVibration: false,
+    );
+
+    await androidPlugin.createNotificationChannel(prayerChannel);
+    await androidPlugin.createNotificationChannel(reminderChannel);
+  }
+
   void setTimezoneByLongitude(double longitude) {
     final String tzName;
     if (longitude < 115.0) {
-      tzName = 'Asia/Jakarta';   // WIB
+      tzName = 'Asia/Jakarta';
     } else if (longitude < 128.0) {
-      tzName = 'Asia/Makassar';  // WITA
+      tzName = 'Asia/Makassar';
     } else {
-      tzName = 'Asia/Jayapura';  // WIT
+      tzName = 'Asia/Jayapura';
     }
     tz.setLocalLocation(tz.getLocation(tzName));
   }
 
   Future<void> requestPermission() async {
     await _plugin
-        .resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin>()
+        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
         ?.requestNotificationsPermission();
   }
 
@@ -75,22 +118,28 @@ class NotificationService {
       tz.TZDateTime.from(scheduledTime, tz.local),
       NotificationDetails(
         android: AndroidNotificationDetails(
-          'prayer_channel',
+          _prayerChannelId,
           'Pengingat Sholat',
-          channelDescription: 'Notifikasi waktu sholat MySholat',
-          importance: Importance.max,
+          channelDescription: 'Notifikasi waktu sholat MySholat (getar saja)',
+          importance: Importance.high,
           priority: Priority.high,
+          playSound: false,
+          sound: null,
           enableVibration: true,
-          vibrationPattern: Int64List.fromList([0, 500, 200, 500]),
-          playSound: true,
+          vibrationPattern: _vibrationPattern,
           color: const Color(0xFF10B981),
-          largeIcon:
-              const DrawableResourceAndroidBitmap('@mipmap/ic_launcher'),
+          enableLights: true,
+          ledColor: const Color(0xFF10B981),
+          ledOnMs: 500,
+          ledOffMs: 500,
+          largeIcon: const DrawableResourceAndroidBitmap('@mipmap/ic_launcher'),
+          fullScreenIntent: false,
+          ticker: title,
         ),
         iOS: const DarwinNotificationDetails(
           presentAlert: true,
           presentBadge: true,
-          presentSound: true,
+          presentSound: false,
         ),
       ),
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
@@ -129,7 +178,7 @@ class NotificationService {
       '$prayerTime · $countdown',
       NotificationDetails(
         android: AndroidNotificationDetails(
-          'prayer_reminder_channel',
+          _reminderChannelId,
           'Pengingat Sholat Berikutnya',
           channelDescription: 'Notifikasi countdown sholat berikutnya',
           importance: Importance.low,
@@ -139,14 +188,13 @@ class NotificationService {
           enableVibration: false,
           color: const Color(0xFF10B981),
           icon: '@mipmap/ic_launcher',
-          largeIcon:
-              const DrawableResourceAndroidBitmap('@mipmap/ic_launcher'),
-          actions: [
-            const AndroidNotificationAction(
+          largeIcon: const DrawableResourceAndroidBitmap('@mipmap/ic_launcher'),
+          actions: const [
+            AndroidNotificationAction(
                 'pelacak', 'Pelacak', showsUserInterface: true),
-            const AndroidNotificationAction(
+            AndroidNotificationAction(
                 'azkar', 'Azkar', showsUserInterface: true),
-            const AndroidNotificationAction(
+            AndroidNotificationAction(
                 'qibla', 'Qibla', showsUserInterface: true),
           ],
         ),
@@ -177,7 +225,11 @@ class NotificationService {
 
   int _notifId(String name) {
     const map = {
-      'Subuh': 1, 'Dzuhur': 2, 'Ashar': 3, 'Maghrib': 4, 'Isya': 5,
+      'Subuh': 1,
+      'Dzuhur': 2,
+      'Ashar': 3,
+      'Maghrib': 4,
+      'Isya': 5,
     };
     return map[name] ?? 0;
   }

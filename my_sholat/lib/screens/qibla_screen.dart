@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_compass/flutter_compass.dart';
 import 'package:provider/provider.dart';
 import '../providers/providers.dart';
+import '../services/location_service.dart';
 import '../utils/constants.dart';
 
 class QiblaScreen extends StatefulWidget {
@@ -20,21 +21,61 @@ class _QiblaScreenState extends State<QiblaScreen> {
   double? _qiblaDirection;
   double  _compassHeading = 0;
   bool    _hasCompass     = false;
+  double? _userLat;
+  double? _userLng;
+  String  _locationLabel  = 'Mendeteksi lokasi...';
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _calculateQibla());
     _listenCompass();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _initLocation());
   }
 
-  void _calculateQibla() {
+  Future<void> _initLocation() async {
+    // Coba dari PrayerProvider dulu (sudah ada GPS)
     final prov = context.read<PrayerProvider>();
     final loc  = prov.currentLocation;
-    if (loc == null) return;
 
-    final userLat  = _toRad(loc.latitude);
-    final userLng  = _toRad(loc.longitude);
+    if (loc != null) {
+      _setLocation(loc.latitude, loc.longitude, loc.city);
+      return;
+    }
+
+    // Fallback: ambil GPS langsung
+    setState(() => _locationLabel = 'Mengambil lokasi GPS...');
+    try {
+      final result = await LocationService().getCurrentLocation();
+      if (result != null && mounted) {
+        _setLocation(result.latitude, result.longitude, result.city);
+        return;
+      }
+    } catch (_) {}
+
+    // Fallback terakhir: pakai kota dari SettingsProvider
+    if (mounted) {
+      final city = context.read<SettingsProvider>().city;
+      // Koordinat kota-kota umum Indonesia
+      final coords = _cityCoords[city];
+      if (coords != null) {
+        _setLocation(coords[0], coords[1], city);
+      } else {
+        // Default Yogyakarta
+        _setLocation(-7.7956, 110.3695, city);
+      }
+    }
+  }
+
+  void _setLocation(double lat, double lng, String label) {
+    _userLat = lat;
+    _userLng = lng;
+    _locationLabel = label;
+    _calculateQibla(lat, lng);
+  }
+
+  void _calculateQibla(double userLatDeg, double userLngDeg) {
+    final userLat  = _toRad(userLatDeg);
+    final userLng  = _toRad(userLngDeg);
     final kaabaLat = _toRad(_kaabaLat);
     final kaabaLng = _toRad(_kaabaLng);
 
@@ -43,16 +84,21 @@ class _QiblaScreenState extends State<QiblaScreen> {
     final x    = math.cos(userLat) * math.sin(kaabaLat) -
                  math.sin(userLat) * math.cos(kaabaLat) * math.cos(dLng);
 
-    setState(() {
-      _qiblaDirection = (_toDeg(math.atan2(y, x)) + 360) % 360;
-    });
+    final bearing = (_toDeg(math.atan2(y, x)) + 360) % 360;
+
+    if (mounted) {
+      setState(() => _qiblaDirection = bearing);
+    }
   }
 
   void _listenCompass() {
     FlutterCompass.events?.listen((event) {
       if (!mounted) return;
+      final heading = event.heading;
+      if (heading == null) return;
       setState(() {
-        _compassHeading = event.heading ?? 0;
+        // Normalisasi heading ke 0-360
+        _compassHeading = (heading + 360) % 360;
         _hasCompass = true;
       });
     });
@@ -61,14 +107,22 @@ class _QiblaScreenState extends State<QiblaScreen> {
   double _toRad(double deg) => deg * math.pi / 180;
   double _toDeg(double rad) => rad * 180 / math.pi;
 
+  // Sudut rotasi jarum kiblat relatif terhadap kompas
   double get _needleAngle {
     if (_qiblaDirection == null) return 0;
+    // Qibla direction sudah dalam True North
+    // Kompas heading juga True North
+    // Rotasi jarum = qibla - heading
     return _toRad((_qiblaDirection! - _compassHeading + 360) % 360);
   }
 
-  bool get _isAligned =>
-      _qiblaDirection != null &&
-      ((_compassHeading - _qiblaDirection!).abs() % 360) < 5;
+  // Cek aligned: selisih terkecil < 5 derajat
+  bool get _isAligned {
+    if (_qiblaDirection == null) return false;
+    double diff = (_qiblaDirection! - _compassHeading).abs() % 360;
+    if (diff > 180) diff = 360 - diff;
+    return diff < 5;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -90,31 +144,25 @@ class _QiblaScreenState extends State<QiblaScreen> {
           ),
         ),
       ),
-      body: Consumer<PrayerProvider>(
-        builder: (_, prov, __) {
-          return SingleChildScrollView(
-            padding: const EdgeInsets.only(bottom: 24),
-            child: Column(
-              children: [
-                const SizedBox(height: 16),
-                _buildLocationInfo(prov),
-                const SizedBox(height: 20),
-                _hasCompass ? _buildCompass() : _buildNoCompass(),
-                const SizedBox(height: 16),
-                if (_qiblaDirection != null) _buildQiblaInfo(),
-                const SizedBox(height: 12),
-                _buildTipsCard(),
-              ],
-            ),
-          );
-        },
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.only(bottom: 24),
+        child: Column(
+          children: [
+            const SizedBox(height: 16),
+            _buildLocationInfo(),
+            const SizedBox(height: 20),
+            _hasCompass ? _buildCompass() : _buildNoCompass(),
+            const SizedBox(height: 16),
+            if (_qiblaDirection != null) _buildQiblaInfo(),
+            const SizedBox(height: 12),
+            _buildTipsCard(),
+          ],
+        ),
       ),
     );
   }
 
-  // ── FIX: pakai 2 baris agar tidak overflow di layar sempit
-  Widget _buildLocationInfo(PrayerProvider prov) {
-    final loc = prov.currentLocation;
+  Widget _buildLocationInfo() {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
@@ -129,34 +177,27 @@ class _QiblaScreenState extends State<QiblaScreen> {
               color: AppColors.primary, size: 14),
           const SizedBox(width: 6),
           Expanded(
-            child: loc != null
-                ? Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        prov.cityName,
-                        style: const TextStyle(
-                            fontSize: 12,
-                            color: Colors.white,
-                            fontWeight: FontWeight.w500),
-                        overflow: TextOverflow.ellipsis,
-                        maxLines: 1,
-                      ),
-                      Text(
-                        '${loc.latitude.toStringAsFixed(4)}°, '
-                        '${loc.longitude.toStringAsFixed(4)}°',
-                        style: const TextStyle(
-                            fontSize: 11, color: AppColors.textHint),
-                      ),
-                    ],
-                  )
-                : Text(
-                    prov.cityName,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  _locationLabel,
+                  style: const TextStyle(
+                      fontSize: 12,
+                      color: Colors.white,
+                      fontWeight: FontWeight.w500),
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
+                ),
+                if (_userLat != null && _userLng != null)
+                  Text(
+                    '${_userLat!.toStringAsFixed(4)}°, '
+                    '${_userLng!.toStringAsFixed(4)}°',
                     style: const TextStyle(
-                        fontSize: 12, color: AppColors.textHint),
-                    overflow: TextOverflow.ellipsis,
-                    maxLines: 1,
+                        fontSize: 11, color: AppColors.textHint),
                   ),
+              ],
+            ),
           ),
         ],
       ),
@@ -182,15 +223,12 @@ class _QiblaScreenState extends State<QiblaScreen> {
             key: ValueKey(_isAligned),
             style: TextStyle(
               fontSize: 13,
-              fontWeight:
-                  _isAligned ? FontWeight.w600 : FontWeight.normal,
+              fontWeight: _isAligned ? FontWeight.w600 : FontWeight.normal,
               color: _isAligned ? AppColors.primary : AppColors.textMuted,
             ),
           ),
         ),
         const SizedBox(height: 24),
-
-        // Lingkaran kompas
         SizedBox(
           width: 280, height: 280,
           child: Stack(
@@ -220,28 +258,35 @@ class _QiblaScreenState extends State<QiblaScreen> {
                 ),
               ),
 
-              // Tick marks
+              // Tick marks (tidak bergerak, sebagai background)
               CustomPaint(
                 size: const Size(260, 260),
                 painter: _TickPainter(),
               ),
 
-              // Label N E S W
-              ..._cardinalLabels(),
-
-              // Jarum kompas merah (north)
+              // Seluruh kompas BERPUTAR berlawanan dengan heading
+              // sehingga U selalu menunjuk ke Utara sejati
               Transform.rotate(
                 angle: -_toRad(_compassHeading),
-                child: CustomPaint(
-                  size: const Size(200, 200),
-                  painter: _NeedlePainter(
-                    northColor: Colors.red,
-                    southColor: Colors.white24,
-                  ),
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    const SizedBox(width: 280, height: 280),
+                    // Label arah mata angin ikut berputar
+                    ..._cardinalLabels(),
+                    // Jarum merah = penanda Utara
+                    CustomPaint(
+                      size: const Size(200, 200),
+                      painter: _NeedlePainter(
+                        northColor: Colors.red,
+                        southColor: Colors.white24,
+                      ),
+                    ),
+                  ],
                 ),
               ),
 
-              // Jarum kiblat hijau
+              // Jarum kiblat hijau — rotasi berdasarkan qibla relatif heading
               if (_qiblaDirection != null)
                 Transform.rotate(
                   angle: _needleAngle,
@@ -249,8 +294,7 @@ class _QiblaScreenState extends State<QiblaScreen> {
                     size: const Size(200, 200),
                     painter: _NeedlePainter(
                       northColor: AppColors.primary,
-                      southColor:
-                          AppColors.primary.withValues(alpha: 0.3),
+                      southColor: AppColors.primary.withValues(alpha: 0.3),
                       isQibla: true,
                     ),
                   ),
@@ -292,9 +336,7 @@ class _QiblaScreenState extends State<QiblaScreen> {
           style: TextStyle(
             fontSize: 12,
             fontWeight: FontWeight.w700,
-            color: label == 'U'
-                ? AppColors.primary
-                : AppColors.textFaint,
+            color: label == 'U' ? AppColors.primary : AppColors.textFaint,
           ),
         ),
       );
@@ -321,7 +363,7 @@ class _QiblaScreenState extends State<QiblaScreen> {
                   fontWeight: FontWeight.w600,
                   color: Colors.white)),
           const SizedBox(height: 6),
-          Text(
+          const Text(
             'Perangkat ini tidak memiliki sensor magnetometer.\n'
             'Gunakan kompas fisik untuk menentukan arah kiblat.',
             textAlign: TextAlign.center,
@@ -330,8 +372,7 @@ class _QiblaScreenState extends State<QiblaScreen> {
           if (_qiblaDirection != null) ...[
             const SizedBox(height: 16),
             Container(
-              padding: const EdgeInsets.symmetric(
-                  horizontal: 16, vertical: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
               decoration: BoxDecoration(
                 color: AppColors.primary.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(10),
@@ -353,8 +394,8 @@ class _QiblaScreenState extends State<QiblaScreen> {
   }
 
   Widget _buildQiblaInfo() {
-    final selisih =
-        (_qiblaDirection! - _compassHeading + 360) % 360;
+    double selisih = (_qiblaDirection! - _compassHeading).abs() % 360;
+    if (selisih > 180) selisih = 360 - selisih;
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20),
       padding: const EdgeInsets.all(14),
@@ -366,8 +407,7 @@ class _QiblaScreenState extends State<QiblaScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          _infoItem('Arah Kiblat',
-              '${_qiblaDirection!.toStringAsFixed(1)}°'),
+          _infoItem('Arah Kiblat', '${_qiblaDirection!.toStringAsFixed(1)}°'),
           Container(width: 1, height: 36, color: AppColors.bgCardBorder),
           _infoItem('Heading', '${_compassHeading.toStringAsFixed(1)}°'),
           Container(width: 1, height: 36, color: AppColors.bgCardBorder),
@@ -386,8 +426,7 @@ class _QiblaScreenState extends State<QiblaScreen> {
                   color: AppColors.primary)),
           const SizedBox(height: 2),
           Text(label,
-              style: const TextStyle(
-                  fontSize: 11, color: AppColors.textHint)),
+              style: const TextStyle(fontSize: 11, color: AppColors.textHint)),
         ],
       );
 
@@ -409,7 +448,7 @@ class _QiblaScreenState extends State<QiblaScreen> {
               ),
             ),
             const SizedBox(width: 12),
-            Expanded(
+            const Expanded(
               child: Text(
                 'Tips: Jauhkan dari benda logam & elektronik.\n'
                 'Kalibrasi dengan membuat gerakan angka 8 dengan HP.',
@@ -423,9 +462,41 @@ class _QiblaScreenState extends State<QiblaScreen> {
           ],
         ),
       );
+
+  // Koordinat fallback kota-kota Indonesia
+  static const Map<String, List<double>> _cityCoords = {
+    'Yogyakarta':  [-7.7956,  110.3695],
+    'Jakarta':     [-6.2088,  106.8456],
+    'Surabaya':    [-7.2575,  112.7521],
+    'Bandung':     [-6.9175,  107.6191],
+    'Medan':       [3.5952,    98.6722],
+    'Semarang':    [-6.9932,  110.4203],
+    'Makassar':    [-5.1477,  119.4327],
+    'Palembang':   [-2.9761,  104.7754],
+    'Denpasar':    [-8.6705,  115.2126],
+    'Malang':      [-7.9797,  112.6304],
+    'Purwokerto':  [-7.4341,  109.2479],
+    'Solo':        [-7.5755,  110.8243],
+    'Bogor':       [-6.5971,  106.8060],
+    'Pekanbaru':   [0.5071,   101.4478],
+    'Padang':      [-0.9471,  100.4172],
+    'Banjarmasin': [-3.3186,  114.5944],
+    'Pontianak':   [-0.0263,  109.3425],
+    'Balikpapan':  [-1.2379,  116.8529],
+    'Samarinda':   [-0.5022,  117.1536],
+    'Manado':      [1.4748,   124.8421],
+    'Jayapura':    [-2.5916,  140.6690],
+    'Aceh':        [5.5483,    95.3238],
+    'Batam':       [1.0457,   104.0305],
+    'Depok':       [-6.4025,  106.7942],
+    'Tangerang':   [-6.1783,  106.6319],
+    'Bekasi':      [-6.2383,  106.9756],
+    'Kendal':      [-6.9227,  110.2017],
+    'Batang':      [-6.9042,  109.7320],
+  };
 }
 
-// ── Painter tick marks lingkaran kompas
+// ── Painter tick marks
 class _TickPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
@@ -434,17 +505,14 @@ class _TickPainter extends CustomPainter {
     final r  = size.width / 2;
 
     final paint = Paint()
-      ..color = AppColors.bgCardBorder
       ..strokeWidth = 1.5
       ..strokeCap = StrokeCap.round;
 
     for (int i = 0; i < 72; i++) {
-      final angle = i * math.pi * 2 / 72;
-      final isMajor = i % 9 == 0;
-      final len = isMajor ? 10.0 : 5.0;
-      paint.color = isMajor
-          ? AppColors.textFaint
-          : AppColors.bgCardBorder;
+      final angle    = i * math.pi * 2 / 72;
+      final isMajor  = i % 9 == 0;
+      final len      = isMajor ? 10.0 : 5.0;
+      paint.color    = isMajor ? AppColors.textFaint : AppColors.bgCardBorder;
       final x1 = cx + (r - 4) * math.cos(angle);
       final y1 = cy + (r - 4) * math.sin(angle);
       final x2 = cx + (r - 4 - len) * math.cos(angle);
@@ -457,7 +525,7 @@ class _TickPainter extends CustomPainter {
   bool shouldRepaint(_TickPainter _) => false;
 }
 
-// ── Painter jarum kompas
+// ── Painter jarum
 class _NeedlePainter extends CustomPainter {
   final Color northColor;
   final Color southColor;
@@ -484,18 +552,14 @@ class _NeedlePainter extends CustomPainter {
     canvas.drawLine(Offset(cx, cy), Offset(cx, cy - len), paintN);
 
     if (isQibla) {
-      // Lingkaran kecil di ujung jarum kiblat
       canvas.drawCircle(
-          Offset(cx, cy - len - 7),
-          5,
-          Paint()..color = northColor);
+          Offset(cx, cy - len - 7), 5, Paint()..color = northColor);
     } else {
       final paintS = Paint()
         ..color = southColor
         ..strokeWidth = w
         ..strokeCap = StrokeCap.round;
-      canvas.drawLine(
-          Offset(cx, cy), Offset(cx, cy + len * 0.5), paintS);
+      canvas.drawLine(Offset(cx, cy), Offset(cx, cy + len * 0.5), paintS);
     }
   }
 

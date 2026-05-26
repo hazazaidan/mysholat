@@ -19,11 +19,11 @@ class _PermissionScreenState extends State<PermissionScreen> {
   bool   _locationGranted = false;
   bool   _notifGranted    = false;
   bool   _isLoading       = false;
-  bool   _locationLoading = false; // ← tambahan: loading state khusus lokasi
+  bool   _locationLoading = false;
   String _selectedCity    = 'Yogyakarta';
 
   Future<void> _requestLocation() async {
-    if (_locationLoading) return; // cegah double tap
+    if (_locationLoading) return;
     setState(() => _locationLoading = true);
 
     try {
@@ -35,7 +35,6 @@ class _PermissionScreenState extends State<PermissionScreen> {
         });
       }
     } catch (_) {
-      // Izin ditolak / error → tetap bisa lanjut pakai kota manual
       if (mounted) setState(() => _locationGranted = false);
     } finally {
       if (mounted) setState(() => _locationLoading = false);
@@ -58,6 +57,10 @@ class _PermissionScreenState extends State<PermissionScreen> {
     await prefs.setString(AppStrings.keyCity, _selectedCity);
 
     if (!mounted) return;
+
+    // ── TAMBAH: sync kota ke SettingsProvider agar Settings ikut update ──
+    await context.read<SettingsProvider>().updateCity(_selectedCity);
+
     context.read<PrayerProvider>().loadPrayers(city: _selectedCity);
 
     Navigator.of(context).pushReplacement(
@@ -156,18 +159,16 @@ class _PermissionScreenState extends State<PermissionScreen> {
                     _buildPermissionTile(
                       icon: Icons.location_on_rounded,
                       title: 'Izin Lokasi',
-                      subtitle:
-                          'Untuk mendapatkan waktu sholat yang lebih akurat',
+                      subtitle: 'Untuk mendapatkan waktu sholat yang lebih akurat',
                       isGranted: _locationGranted,
-                      isLoading: _locationLoading, // ← tampil loading spinner
+                      isLoading: _locationLoading,
                       onTap: _requestLocation,
                     ),
                     const SizedBox(height: 10),
                     _buildPermissionTile(
                       icon: Icons.notifications_rounded,
                       title: 'Izin Pemberitahuan',
-                      subtitle:
-                          'Untuk menerima notifikasi sholat dengan segera',
+                      subtitle: 'Untuk menerima notifikasi sholat dengan segera',
                       isGranted: _notifGranted,
                       isLoading: false,
                       onTap: _requestNotification,
@@ -213,8 +214,7 @@ class _PermissionScreenState extends State<PermissionScreen> {
     return GestureDetector(
       onTap: _showCityPicker,
       child: Container(
-        padding:
-            const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         decoration: BoxDecoration(
           color: AppColors.bgCard,
           border: Border.all(color: AppColors.bgCardBorder),
@@ -261,7 +261,7 @@ class _PermissionScreenState extends State<PermissionScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
       child: Row(
         children: [
-          Text('MySholat',
+          const Text('MySholat',
               style: TextStyle(
                   fontSize: 12,
                   color: AppColors.textHint,
@@ -317,15 +317,14 @@ class _PermissionScreenState extends State<PermissionScreen> {
     required String title,
     required String subtitle,
     required bool isGranted,
-    required bool isLoading, // ← parameter baru
+    required bool isLoading,
     required VoidCallback onTap,
   }) {
     return GestureDetector(
-      onTap: isLoading ? null : onTap, // ← disable tap saat loading
+      onTap: isLoading ? null : onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 250),
-        padding:
-            const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         decoration: BoxDecoration(
           color: isGranted
               ? AppColors.primary.withValues(alpha: 0.08)
@@ -362,12 +361,11 @@ class _PermissionScreenState extends State<PermissionScreen> {
                           color: Colors.white)),
                   const SizedBox(height: 2),
                   Text(subtitle,
-                      style: TextStyle(
+                      style: const TextStyle(
                           fontSize: 11, color: AppColors.textHint)),
                 ],
               ),
             ),
-            // ← icon area: loading / granted / idle
             AnimatedContainer(
               duration: const Duration(milliseconds: 250),
               width: 22, height: 22,

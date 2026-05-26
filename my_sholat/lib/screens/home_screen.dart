@@ -1,5 +1,4 @@
 // lib/screens/home_screen.dart
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/providers.dart';
@@ -32,7 +31,6 @@ class _HomeScreenState extends State<HomeScreen> {
     final next = prov.nextPrayer;
     if (next == null) return;
 
-    // FIX: pakai ?? Duration.zero agar tidak nullable error
     final countdown = prov.countdownToNext ?? Duration.zero;
     final h = countdown.inHours;
     final m = (countdown.inMinutes % 60).toString().padLeft(2, '0');
@@ -64,11 +62,11 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.bgDeep,
+      backgroundColor: AppColors.bg(context),
       body: SafeArea(
         child: RefreshIndicator(
           color: AppColors.primary,
-          backgroundColor: AppColors.bgCard,
+          backgroundColor: AppColors.bg(context, card: true),
           onRefresh: () async {
             await context.read<PrayerProvider>().loadPrayers();
             _updateReminderNotif();
@@ -103,14 +101,21 @@ class _HomeScreenState extends State<HomeScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(_greeting,
-                    style: TextStyle(fontSize: 12, color: AppColors.textHint)),
+                    style: TextStyle(
+                        fontSize: 12,
+                        color: AppColors.text(context, level: 'hint'))),
                 const SizedBox(height: 2),
                 RichText(
-                  text: const TextSpan(
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+                  text: TextSpan(
+                    style: const TextStyle(
+                        fontSize: 20, fontWeight: FontWeight.w700),
                     children: [
-                      TextSpan(text: 'My', style: TextStyle(color: Colors.white)),
-                      TextSpan(text: 'Sholat', style: TextStyle(color: AppColors.primary)),
+                      TextSpan(
+                          text: 'My',
+                          style: TextStyle(color: AppColors.text(context))),
+                      const TextSpan(
+                          text: 'Sholat',
+                          style: TextStyle(color: AppColors.primary)),
                     ],
                   ),
                 ),
@@ -119,10 +124,12 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           Consumer<PrayerProvider>(
             builder: (_, prov, __) => Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
               decoration: BoxDecoration(
-                color: AppColors.bgCardActive,
-                border: Border.all(color: AppColors.bgCardBorder),
+                color: AppColors.bg(context, active: true),
+                border: Border.all(
+                    color: AppColors.border(context, active: true)),
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Row(
@@ -149,112 +156,109 @@ class _HomeScreenState extends State<HomeScreen> {
     return Consumer<PrayerProvider>(
       builder: (_, prov, __) {
         final next = prov.nextPrayer;
-        // FIX: ?? Duration.zero agar tidak nullable error
         final countdown = prov.countdownToNext ?? Duration.zero;
 
-        return Container(
-          margin: const EdgeInsets.fromLTRB(16, 14, 16, 0),
-          padding: const EdgeInsets.all(18),
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [Color(0xFF0F2A1A), Color(0xFF1A3A2A)],
+        return Padding(
+          // margin kiri 16, kanan 16 — simetris kiri & kanan
+          padding: const EdgeInsets.fromLTRB(16, 14, 0, 0),
+          child: Container(
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [AppColors.primary, AppColors.primaryDark],
+              ),
+              // radius semua sudut — simetris kiri & kanan
+              borderRadius: BorderRadius.circular(AppDimensions.radiusXl),
             ),
-            borderRadius: BorderRadius.circular(AppDimensions.radiusXl),
-            border: Border.all(color: AppColors.bgCardBorderActive),
-          ),
-          child: Stack(
-            children: [
-              Positioned(
-                right: -20, top: -20,
-                child: Container(
-                  width: 110, height: 110,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                        color: AppColors.primary.withValues(alpha: 0.2),
-                        width: 1.5),
-                  ),
-                ),
-              ),
-              Positioned(
-                right: -35, top: -35,
-                child: Container(
-                  width: 140, height: 140,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                        color: AppColors.primary.withValues(alpha: 0.1),
-                        width: 1),
-                  ),
-                ),
-              ),
-              Positioned(
-                right: 14, bottom: 10,
-                child: Icon(Icons.mosque_rounded,
-                    size: 38,
-                    color: AppColors.primary.withValues(alpha: 0.18)),
-              ),
-
-              if (next != null)
+            child: Stack(
+              children: [
                 Positioned(
-                  top: 0, right: 0,
-                  child: GestureDetector(
-                    onTap: () => _showShare(context, prov),
-                    child: Container(
-                      padding: const EdgeInsets.all(6),
-                      decoration: BoxDecoration(
-                        color: AppColors.primary.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(
-                          color: AppColors.primary.withValues(alpha: 0.3),
-                        ),
-                      ),
-                      child: const Icon(
-                        Icons.ios_share_rounded,
-                        color: AppColors.primary,
-                        size: 16,
-                      ),
+                  right: -20, top: -20,
+                  child: Container(
+                    width: 110, height: 110,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                          color: Colors.white.withValues(alpha: 0.15),
+                          width: 1.5),
                     ),
                   ),
                 ),
-
-              if (prov.isLoading)
-                const SizedBox(
-                  height: 100,
-                  child: Center(
-                    child: CircularProgressIndicator(
-                        color: AppColors.primary, strokeWidth: 2),
+                Positioned(
+                  right: -35, top: -35,
+                  child: Container(
+                    width: 140, height: 140,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                          color: Colors.white.withValues(alpha: 0.08),
+                          width: 1),
+                    ),
                   ),
-                )
-              else if (next != null)
-                CountdownWidget(
-                  duration: countdown,
-                  prayerName: next.name,
-                  prayerTime: '${next.time} · ${_formatDate(DateTime.now())}',
-                )
-              else
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Semua Sholat Hari Ini',
-                        style: TextStyle(
-                            fontSize: 11,
-                            color: AppColors.textHint,
-                            letterSpacing: 1)),
-                    const SizedBox(height: 6),
-                    const Text('Sudah Selesai ✅',
-                        style: TextStyle(
-                            fontSize: 22,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.white)),
-                    const SizedBox(height: 4),
-                    Text('MasyaAllah, semangat terus!',
-                        style: TextStyle(fontSize: 13, color: AppColors.textHint)),
-                  ],
                 ),
-            ],
+                Positioned(
+                  right: 14, bottom: 10,
+                  child: Icon(Icons.mosque_rounded,
+                      size: 38,
+                      color: Colors.white.withValues(alpha: 0.18)),
+                ),
+                if (next != null)
+                  Positioned(
+                    top: 0, right: 0,
+                    child: GestureDetector(
+                      onTap: () => _showShare(context, prov),
+                      child: Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                              color: Colors.white.withValues(alpha: 0.3)),
+                        ),
+                        child: const Icon(Icons.ios_share_rounded,
+                            color: Colors.white, size: 16),
+                      ),
+                    ),
+                  ),
+                if (prov.isLoading)
+                  const SizedBox(
+                    height: 100,
+                    child: Center(
+                        child: CircularProgressIndicator(
+                            color: Colors.white, strokeWidth: 2)),
+                  )
+                else if (next != null)
+                  CountdownWidget(
+                    duration: countdown,
+                    prayerName: next.name,
+                    prayerTime:
+                        '${next.time} · ${_formatDate(DateTime.now())}',
+                  )
+                else
+                  const Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Semua Sholat Hari Ini',
+                          style: TextStyle(
+                              fontSize: 11,
+                              color: Colors.white70,
+                              letterSpacing: 1)),
+                      SizedBox(height: 6),
+                      Text('Sudah Selesai ✅',
+                          style: TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.white)),
+                      SizedBox(height: 4),
+                      Text('MasyaAllah, semangat terus!',
+                          style:
+                              TextStyle(fontSize: 13, color: Colors.white70)),
+                    ],
+                  ),
+              ],
+            ),
           ),
         );
       },
@@ -295,8 +299,8 @@ class _HomeScreenState extends State<HomeScreen> {
           margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
-            color: AppColors.bgCard,
-            border: Border.all(color: AppColors.bgCardBorder),
+            color: AppColors.bg(context, card: true),
+            border: Border.all(color: AppColors.border(context)),
             borderRadius: BorderRadius.circular(AppDimensions.radiusMd),
           ),
           child: Column(
@@ -305,7 +309,9 @@ class _HomeScreenState extends State<HomeScreen> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text('Progress Ibadah Hari Ini',
-                      style: TextStyle(fontSize: 12, color: AppColors.textHint)),
+                      style: TextStyle(
+                          fontSize: 12,
+                          color: AppColors.text(context, level: 'hint'))),
                   Text('$completed/5',
                       style: const TextStyle(
                           fontSize: 13,
@@ -319,8 +325,9 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: LinearProgressIndicator(
                   value: rate,
                   minHeight: 6,
-                  backgroundColor: AppColors.bgCardBorder,
-                  valueColor: const AlwaysStoppedAnimation(AppColors.primary),
+                  backgroundColor: AppColors.border(context),
+                  valueColor:
+                      const AlwaysStoppedAnimation(AppColors.primary),
                 ),
               ),
               const SizedBox(height: 10),
@@ -335,18 +342,24 @@ class _HomeScreenState extends State<HomeScreen> {
                     margin: const EdgeInsets.symmetric(horizontal: 4),
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: done ? AppColors.primary : AppColors.bgCardBorder,
+                      color: done
+                          ? AppColors.primary
+                          : AppColors.border(context),
                       border: Border.all(
-                        color: done ? AppColors.primary : AppColors.bgCardBorderActive,
+                        color: done
+                            ? AppColors.primary
+                            : AppColors.border(context, active: true),
                       ),
                     ),
                     child: Center(
                       child: done
-                          ? const Icon(Icons.check_rounded, color: Colors.white, size: 14)
+                          ? const Icon(Icons.check_rounded,
+                              color: Colors.white, size: 14)
                           : Text(names[i],
                               style: TextStyle(
                                   fontSize: 10,
-                                  color: AppColors.textFaint,
+                                  color: AppColors.text(context,
+                                      level: 'hint'),
                                   fontWeight: FontWeight.w600)),
                     ),
                   );
@@ -362,10 +375,10 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildSectionTitle(String title) => Padding(
         padding: const EdgeInsets.fromLTRB(20, 14, 20, 8),
         child: Text(title,
-            style: const TextStyle(
+            style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
-                color: AppColors.textMuted,
+                color: AppColors.text(context, level: 'muted'),
                 letterSpacing: 0.5)),
       );
 
@@ -398,13 +411,9 @@ class _HomeScreenState extends State<HomeScreen> {
       margin: const EdgeInsets.fromLTRB(16, 14, 16, 0),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: AppColors.bgCard,
+        color: AppColors.bg(context, card: true),
         borderRadius: BorderRadius.circular(AppDimensions.radiusMd),
-        border: Border.all(color: AppColors.bgCardBorder),
-        gradient: LinearGradient(
-          begin: Alignment.centerLeft,
-          colors: [AppColors.bgCardActive, AppColors.bgCard],
-        ),
+        border: Border.all(color: AppColors.border(context)),
       ),
       child: Row(
         children: [
@@ -421,7 +430,7 @@ class _HomeScreenState extends State<HomeScreen> {
             child: Text(_quotes[idx],
                 style: TextStyle(
                     fontSize: 12,
-                    color: AppColors.textMuted,
+                    color: AppColors.text(context, level: 'muted'),
                     height: 1.6,
                     fontStyle: FontStyle.italic)),
           ),

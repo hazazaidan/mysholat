@@ -32,17 +32,13 @@ class _CountdownWidgetState extends State<CountdownWidget>
   void initState() {
     super.initState();
     _remaining = widget.duration ?? Duration.zero;
-
-    // Pulse animation pada angka countdown
     _pulseCtrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1000),
     )..repeat(reverse: true);
-
     _pulseAnim = Tween<double>(begin: 0.95, end: 1.0).animate(
       CurvedAnimation(parent: _pulseCtrl, curve: Curves.easeInOut),
     );
-
     _startTimer();
   }
 
@@ -75,44 +71,26 @@ class _CountdownWidgetState extends State<CountdownWidget>
 
   @override
   Widget build(BuildContext context) {
+    // Countdown ada di atas kartu hijau → semua teks putih/putih70
+    // Tidak perlu AppColors.text() di sini karena background selalu hijau
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        // Label
-        Text(
+        const Text(
           'Sholat Berikutnya',
-          style: TextStyle(
-            fontSize: 11,
-            color: AppColors.textHint,
-            letterSpacing: 1,
-            fontWeight: FontWeight.w500,
-          ),
+          style: TextStyle(fontSize: 11, color: Colors.white70, letterSpacing: 1, fontWeight: FontWeight.w500),
         ),
         const SizedBox(height: 4),
-
-        // Prayer name
         Text(
           widget.prayerName,
-          style: const TextStyle(
-            fontSize: 26,
-            fontWeight: FontWeight.w700,
-            color: Colors.white,
-          ),
+          style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w700, color: Colors.white),
         ),
-
-        // Prayer time + date
         Text(
           widget.prayerTime,
-          style: const TextStyle(
-            fontSize: 13,
-            color: AppColors.textHint,
-          ),
+          style: const TextStyle(fontSize: 13, color: Colors.white70),
         ),
-
         const SizedBox(height: 10),
-
-        // Countdown numbers with pulse
         ScaleTransition(
           scale: _pulseAnim,
           child: Text(
@@ -120,30 +98,23 @@ class _CountdownWidgetState extends State<CountdownWidget>
             style: const TextStyle(
               fontSize: 36,
               fontWeight: FontWeight.w700,
-              color: AppColors.primary,
+              color: Colors.white,           // ← putih supaya kontras di atas hijau
               letterSpacing: 2,
               fontFeatures: [FontFeature.tabularFigures()],
             ),
           ),
         ),
-
-        // Sub label
-        Text(
+        const Text(
           'menuju waktu sholat',
-          style: TextStyle(
-            fontSize: 11,
-            color: AppColors.textHint,
-          ),
+          style: TextStyle(fontSize: 11, color: Colors.white70),
         ),
       ],
     );
   }
 }
 
-/// Compact versi — hanya tampilkan angka countdown saja
 class CountdownCompact extends StatefulWidget {
   final Duration? duration;
-
   const CountdownCompact({super.key, required this.duration});
 
   @override
@@ -161,9 +132,7 @@ class _CountdownCompactState extends State<CountdownCompact> {
     _timer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (!mounted) return;
       setState(() {
-        if (_remaining.inSeconds > 0) {
-          _remaining = _remaining - const Duration(seconds: 1);
-        }
+        if (_remaining.inSeconds > 0) _remaining = _remaining - const Duration(seconds: 1);
       });
     });
   }
