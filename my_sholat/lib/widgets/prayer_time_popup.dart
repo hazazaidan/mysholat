@@ -1,5 +1,6 @@
 // lib/widgets/prayer_time_popup.dart
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../utils/constants.dart';
 import 'mosque_painter.dart';
 
@@ -8,7 +9,6 @@ class PrayerTimePopup extends StatelessWidget {
   final String prayerTime;
   final String cityName;
   final VoidCallback? onMarkDone;
-  final VoidCallback? onClose;
 
   const PrayerTimePopup({
     super.key,
@@ -16,7 +16,6 @@ class PrayerTimePopup extends StatelessWidget {
     required this.prayerTime,
     required this.cityName,
     this.onMarkDone,
-    this.onClose,
   });
 
   static Future<void> show(
@@ -26,183 +25,232 @@ class PrayerTimePopup extends StatelessWidget {
     required String cityName,
     VoidCallback? onMarkDone,
   }) {
-    return showDialog(
-      context: context,
-      barrierDismissible: false,
-      barrierColor: Colors.black.withValues(alpha: 0.7),
-      builder: (_) => PrayerTimePopup(
-        prayerName: prayerName,
-        prayerTime: prayerTime,
-        cityName: cityName,
-        onMarkDone: onMarkDone,
-        onClose: () => Navigator.of(context).pop(),
+    return Navigator.of(context).push(
+      PageRouteBuilder(
+        opaque: false,
+        barrierDismissible: false,
+        barrierColor: Colors.black.withValues(alpha: 0.85),
+        pageBuilder: (_, __, ___) => PrayerTimePopup(
+          prayerName: prayerName,
+          prayerTime: prayerTime,
+          cityName: cityName,
+          onMarkDone: onMarkDone,
+        ),
+        transitionsBuilder: (_, anim, __, child) => FadeTransition(
+          opacity: anim,
+          child: SlideTransition(
+            position: Tween<Offset>(
+              begin: const Offset(0, 0.08),
+              end: Offset.zero,
+            ).animate(CurvedAnimation(parent: anim, curve: Curves.easeOut)),
+            child: child,
+          ),
+        ),
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final size = MediaQuery.of(context).size;
 
-    return Dialog(
+    // Status bar transparan saat popup muncul
+    SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: Brightness.light,
+    ));
+
+    return Scaffold(
       backgroundColor: Colors.transparent,
-      insetPadding: const EdgeInsets.symmetric(horizontal: 24),
-      child: Container(
-        decoration: BoxDecoration(
-          color: isDark ? AppColors.darkBgCard : const Color(0xFF0A2218),
-          borderRadius: BorderRadius.circular(AppDimensions.radiusXl),
-          border: Border.all(
-            color: AppColors.primary.withValues(alpha: 0.3),
-            width: 1,
+      body: Container(
+        width: size.width,
+        height: size.height,
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Color(0xFF052E16), // hijau sangat gelap
+              Color(0xFF061A0C),
+              Color(0xFF030D06),
+            ],
           ),
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Header chip
-            const SizedBox(height: 24),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-              decoration: BoxDecoration(
-                color: AppColors.primary.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(
-                  color: AppColors.primary.withValues(alpha: 0.3),
+        child: SafeArea(
+          child: Column(
+            children: [
+              const Spacer(flex: 1),
+
+              // ── Chip header ──
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(30),
+                  border: Border.all(
+                    color: AppColors.primary.withValues(alpha: 0.4),
+                  ),
+                ),
+                child: const Text(
+                  '🌙 Waktu Sholat',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: AppColors.primaryLight,
+                    fontWeight: FontWeight.w500,
+                    letterSpacing: 0.3,
+                  ),
                 ),
               ),
-              child: const Text(
-                '🌙 Waktu Sholat',
-                style: TextStyle(
-                  fontSize: 13,
-                  color: AppColors.primaryLight,
-                  fontWeight: FontWeight.w500,
+
+              const SizedBox(height: 28),
+
+              // ── Nama sholat ──
+              Text(
+                prayerName,
+                style: const TextStyle(
+                  fontSize: 42,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                  letterSpacing: 1,
                 ),
               ),
-            ),
 
-            const SizedBox(height: 16),
+              const SizedBox(height: 8),
 
-            // Prayer name
-            Text(
-              prayerName,
-              style: const TextStyle(
-                fontSize: 32,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-                letterSpacing: 0.5,
+              // ── Jam sholat ──
+              Text(
+                prayerTime,
+                style: const TextStyle(
+                  fontSize: 64,
+                  fontWeight: FontWeight.w200,
+                  color: Colors.white,
+                  letterSpacing: 4,
+                ),
               ),
-            ),
 
-            const SizedBox(height: 4),
+              const SizedBox(height: 10),
 
-            // Prayer time
-            Text(
-              prayerTime,
-              style: const TextStyle(
-                fontSize: 48,
-                fontWeight: FontWeight.w300,
-                color: Colors.white,
-                letterSpacing: 2,
-              ),
-            ),
-
-            const SizedBox(height: 4),
-
-            // Hijri / location
-            Text(
-              '📍 $cityName, Indonesia',
-              style: TextStyle(
-                fontSize: 13,
-                color: Colors.white.withValues(alpha: 0.5),
-              ),
-            ),
-
-            const SizedBox(height: 8),
-
-            // Divider
-            Container(
-              height: 1,
-              margin: const EdgeInsets.symmetric(horizontal: 32),
-              color: AppColors.primary.withValues(alpha: 0.2),
-            ),
-
-            const SizedBox(height: 24),
-
-            // Mosque illustration
-            SizedBox(
-              width: 180,
-              height: 130,
-              child: CustomPaint(
-                painter: MosquePainter(),
-              ),
-            ),
-
-            const SizedBox(height: 8),
-
-            // Buttons
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
-              child: Column(
+              // ── Kota ──
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  // Tandai Sudah Sholat button
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton.icon(
-                      onPressed: () {
-                        Navigator.of(context).pop();
-                        onMarkDone?.call();
-                      },
-                      icon: const Icon(Icons.check_rounded, size: 18),
-                      label: const Text(
-                        'Tandai Sudah Sholat',
-                        style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius:
-                              BorderRadius.circular(AppDimensions.radiusMd),
-                        ),
-                        elevation: 0,
-                      ),
+                  Container(
+                    width: 7,
+                    height: 7,
+                    decoration: const BoxDecoration(
+                      color: AppColors.primaryLight,
+                      shape: BoxShape.circle,
                     ),
                   ),
-
-                  const SizedBox(height: 10),
-
-                  // Tutup button
-                  SizedBox(
-                    width: double.infinity,
-                    child: TextButton(
-                      onPressed: () => Navigator.of(context).pop(),
-                      style: TextButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 13),
-                        shape: RoundedRectangleBorder(
-                          borderRadius:
-                              BorderRadius.circular(AppDimensions.radiusMd),
-                          side: BorderSide(
-                            color: Colors.white.withValues(alpha: 0.15),
-                          ),
-                        ),
-                      ),
-                      child: Text(
-                        'Tutup',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.white.withValues(alpha: 0.6),
-                        ),
-                      ),
+                  const SizedBox(width: 7),
+                  Text(
+                    '$cityName, Indonesia',
+                    style: TextStyle(
+                      fontSize: 15,
+                      color: Colors.white.withValues(alpha: 0.55),
+                      letterSpacing: 0.2,
                     ),
                   ),
                 ],
               ),
-            ),
-          ],
+
+              const SizedBox(height: 32),
+
+              // ── Divider gradient ──
+              Container(
+                height: 1,
+                margin: const EdgeInsets.symmetric(horizontal: 40),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      Colors.transparent,
+                      AppColors.primary.withValues(alpha: 0.5),
+                      Colors.transparent,
+                    ],
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 32),
+
+              // ── Gambar masjid ──
+              MosqueWidget(
+                width: size.width * 0.65,
+                height: size.width * 0.65 * 0.7,
+              ),
+
+              const Spacer(flex: 2),
+
+              // ── Tombol ──
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 28),
+                child: Column(
+                  children: [
+                    // Tandai Sudah Sholat
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: () {
+                          Navigator.of(context).pop();
+                          onMarkDone?.call();
+                        },
+                        icon: const Icon(Icons.check_rounded, size: 20),
+                        label: const Text(
+                          'Tandai Sudah Sholat',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: 0.3,
+                          ),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 18),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(
+                                AppDimensions.radiusLg),
+                          ),
+                          elevation: 0,
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(height: 12),
+
+                    // Tutup
+                    SizedBox(
+                      width: double.infinity,
+                      child: TextButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(
+                                AppDimensions.radiusLg),
+                            side: BorderSide(
+                              color: Colors.white.withValues(alpha: 0.2),
+                            ),
+                          ),
+                        ),
+                        child: Text(
+                          'Tutup',
+                          style: TextStyle(
+                            fontSize: 15,
+                            color: Colors.white.withValues(alpha: 0.6),
+                            letterSpacing: 0.3,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 24),
+            ],
+          ),
         ),
       ),
     );
