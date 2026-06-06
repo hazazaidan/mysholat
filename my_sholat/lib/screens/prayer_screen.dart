@@ -38,7 +38,6 @@ class _PrayerScreenState extends State<PrayerScreen> {
   }
 
   String _hijriDate(DateTime d) {
-    // Simplified hijri approximation (production: use hijri package)
     const hijriMonths = [
       'Muharram', 'Safar', 'Rabi\'ul Awal', 'Rabi\'ul Akhir',
       'Jumadil Awal', 'Jumadil Akhir', 'Rajab', 'Sya\'ban',
@@ -50,6 +49,22 @@ class _PrayerScreenState extends State<PrayerScreen> {
     final monthIndex = (hijriDays % 12);
     final hijriDay = (diff % 30) + 1;
     return '$hijriDay ${hijriMonths[monthIndex]} $hijriYear H';
+  }
+
+  // ← BARU: show popup waktu sholat saat card diklik
+  void _showPrayerPopup(BuildContext context, prayer) {
+    final settingsProv = context.read<SettingsProvider>();
+    final prayerProv   = context.read<PrayerProvider>();
+
+    PrayerTimePopup.show(
+      context,
+      prayerName: prayer.name,
+      prayerTime: prayer.time,
+      cityName: settingsProv.city,
+      onMarkDone: () {
+        prayerProv.markPrayerDone(prayer.name);
+      },
+    );
   }
 
   @override
@@ -224,7 +239,8 @@ class _PrayerScreenState extends State<PrayerScreen> {
       itemBuilder: (_, i) => PrayerCard(
         prayer: prayers[i],
         showStatus: true,
-        onTap: () {},
+        // ← PERUBAHAN: onTap sekarang membuka popup waktu sholat
+        onTap: () => _showPrayerPopup(context, prayers[i]),
       ),
     );
   }
@@ -234,16 +250,17 @@ class _PrayerScreenState extends State<PrayerScreen> {
       context: context,
       backgroundColor: AppColors.bgMain,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (_) => Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            width: 36, height: 4,
+            width: 36,
+            height: 4,
             margin: const EdgeInsets.symmetric(vertical: 12),
             decoration: BoxDecoration(
-              color: AppColors.bgCardBorder,
-              borderRadius: BorderRadius.circular(2)),
+                color: AppColors.bgCardBorder,
+                borderRadius: BorderRadius.circular(2)),
           ),
           const Text('Pilih Kota',
               style: TextStyle(
@@ -260,7 +277,8 @@ class _PrayerScreenState extends State<PrayerScreen> {
                 final city = IndonesianCities.cities[i];
                 return ListTile(
                   title: Text(city,
-                      style: const TextStyle(color: AppColors.textSecondary)),
+                      style:
+                          const TextStyle(color: AppColors.textSecondary)),
                   trailing: const Icon(Icons.chevron_right_rounded,
                       color: AppColors.textFaint, size: 18),
                   onTap: () {

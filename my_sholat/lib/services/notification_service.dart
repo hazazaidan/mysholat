@@ -14,10 +14,12 @@ class NotificationService {
   final _plugin = FlutterLocalNotificationsPlugin();
   bool _initialized = false;
 
+  /// Callback dipanggil saat user mengetuk notifikasi sholat
+  static void Function(String prayerName, String prayerTime)? onNotificationTap;
+
   // Pola getar: 0ms jeda → getar 800ms → jeda 300ms → getar 800ms → jeda 300ms → getar 800ms
   static final Int64List _vibrationPattern =
       Int64List.fromList([0, 800, 300, 800, 300, 800]);
-
 
   static const String _prayerChannelId   = 'prayer_channel_v3';
   static const String _reminderChannelId = 'prayer_reminder_channel_v3';
@@ -33,12 +35,35 @@ class NotificationService {
       requestBadgePermission: true,
       requestSoundPermission: false,
     );
+
+    // ← PERUBAHAN: tambah onDidReceiveNotificationResponse
     await _plugin.initialize(
       const InitializationSettings(android: android, iOS: ios),
+      onDidReceiveNotificationResponse: _handleNotificationTap,
+      onDidReceiveBackgroundNotificationResponse: _handleNotificationTapBackground,
     );
 
     await _createNotificationChannel();
     _initialized = true;
+  }
+
+  // ← BARU: handler saat notif diklik (foreground/background)
+  static void _handleNotificationTap(NotificationResponse response) {
+    final payload = response.payload;
+    if (payload == null || !payload.contains('|')) return;
+    final parts = payload.split('|');
+    if (parts.length < 2) return;
+    onNotificationTap?.call(parts[0], parts[1]);
+  }
+
+  @pragma('vm:entry-point')
+  static void _handleNotificationTapBackground(NotificationResponse response) {
+    // Background tap: tidak bisa show dialog dari sini
+    final payload = response.payload;
+    if (payload == null || !payload.contains('|')) return;
+    final parts = payload.split('|');
+    if (parts.length < 2) return;
+    onNotificationTap?.call(parts[0], parts[1]);
   }
 
   Future<void> _createNotificationChannel() async {
@@ -46,7 +71,7 @@ class NotificationService {
         .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
     if (androidPlugin == null) return;
 
-    // Hapus semua channel lama (v1, v2, v3) agar tidak ada konflik
+    // Hapus semua channel lama agar tidak ada konflik
     await androidPlugin.deleteNotificationChannel('prayer_channel');
     await androidPlugin.deleteNotificationChannel('prayer_reminder_channel');
     await androidPlugin.deleteNotificationChannel('prayer_channel_v2');
@@ -56,7 +81,7 @@ class NotificationService {
       _prayerChannelId,
       'Pengingat Sholat',
       description: 'Notifikasi waktu sholat MySholat (getar saja)',
-      importance: Importance.max,          // ← was: high. max = guaranteed vibration
+      importance: Importance.max,
       playSound: false,
       enableVibration: true,
       vibrationPattern: _vibrationPattern,
@@ -92,10 +117,7 @@ class NotificationService {
   Future<void> requestPermission() async {
     final androidPlugin = _plugin
         .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
-
     await androidPlugin?.requestNotificationsPermission();
-
-
     await androidPlugin?.requestExactAlarmsPermission();
   }
 
@@ -126,8 +148,8 @@ class NotificationService {
           _prayerChannelId,
           'Pengingat Sholat',
           channelDescription: 'Notifikasi waktu sholat MySholat (getar saja)',
-          importance: Importance.max,      // ← sync dengan channel
-          priority: Priority.max,          // ← was: high. max = system prioritizes delivery
+          importance: Importance.max,
+          priority: Priority.max,
           playSound: false,
           sound: null,
           enableVibration: true,
@@ -148,6 +170,8 @@ class NotificationService {
           presentSound: false,
         ),
       ),
+      // ← PERUBAHAN: tambah payload nama|jam untuk identifikasi saat diklik
+      payload: '${prayer.name}|${prayer.time}',
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
       uiLocalNotificationDateInterpretation:
           UILocalNotificationDateInterpretation.absoluteTime,
