@@ -21,7 +21,9 @@ void main() async {
     systemNavigationBarColor: Color(0xFF0D1A0F),
     systemNavigationBarIconBrightness: Brightness.light,
   ));
+
   await NotificationService().init();
+  await NotificationService().requestPermission(); // 
 
   final prefs = await SharedPreferences.getInstance();
   final bool permissionDone = prefs.getBool('permission_done') ?? false;
@@ -41,23 +43,28 @@ class MySholatApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => PrayerProvider()),
         ChangeNotifierProvider(create: (_) => ChecklistProvider()),
       ],
-      // REVISI: Consumer rebuild saat darkMode ATAU themeColor berubah
-      child: Consumer<SettingsProvider>(
-        builder: (_, settings, __) => MaterialApp(
-          title: 'MySholat',
-          debugShowCheckedModeBanner: false,
-          // REVISI: pass themeColor ke AppTheme
-          theme: AppTheme.light(settings.themeColor),
-          darkTheme: AppTheme.dark(settings.themeColor),
-          themeMode: settings.darkMode ? ThemeMode.dark : ThemeMode.light,
-          home: SplashScreen(permissionDone: permissionDone),
-          builder: (context, child) => MediaQuery(
-            data: MediaQuery.of(context).copyWith(
-              textScaler: const TextScaler.linear(1.0),
+  
+      child: Consumer2<SettingsProvider, PrayerProvider>(
+        builder: (_, settings, prayer, __) {
+
+          settings.onGetPrayers ??= () async =>
+              prayer.todayPrayers?.prayers ?? [];
+
+          return MaterialApp(
+            title: 'MySholat',
+            debugShowCheckedModeBanner: false,
+            theme: AppTheme.light(settings.themeColor),
+            darkTheme: AppTheme.dark(settings.themeColor),
+            themeMode: settings.darkMode ? ThemeMode.dark : ThemeMode.light,
+            home: SplashScreen(permissionDone: permissionDone),
+            builder: (context, child) => MediaQuery(
+              data: MediaQuery.of(context).copyWith(
+                textScaler: const TextScaler.linear(1.0),
+              ),
+              child: child!,
             ),
-            child: child!,
-          ),
-        ),
+          );
+        },
       ),
     );
   }

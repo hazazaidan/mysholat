@@ -2,38 +2,37 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/models.dart';
+import '../services/notification_service.dart';
 import '../utils/constants.dart';
 
 class SettingsProvider extends ChangeNotifier {
   UserSettings _settings = const UserSettings();
   bool _loaded = false;
-  Color _themeColor = AppColors.primary;
 
-  UserSettings get settings => _settings;
-  bool get loaded => _loaded;
-  bool get darkMode => _settings.darkMode;
-  String get city => _settings.city;
-  int get reminderMinutes => _settings.reminderMinutes;
-  bool get vibration => _settings.vibration;
-  bool get notificationsEnabled => _settings.notificationsEnabled;
-  String get adzanSound => _settings.adzanSound;
-  Color get themeColor => _themeColor;
+  Future<List<PrayerTime>> Function()? onGetPrayers;
+
+  UserSettings get settings             => _settings;
+  bool         get loaded               => _loaded;
+  bool         get darkMode             => _settings.darkMode;
+  String       get city                 => _settings.city;
+  int          get reminderMinutes      => _settings.reminderMinutes;
+  bool         get vibration            => _settings.vibration;
+  bool         get notificationsEnabled => _settings.notificationsEnabled;
+  String       get adzanSound           => _settings.adzanSound;
+
+
+  Color get themeColor => AppColors.primary;
 
   Future<void> load() async {
     final prefs = await SharedPreferences.getInstance();
     _settings = UserSettings(
-      city: prefs.getString(AppStrings.keyCity) ?? 'Yogyakarta',
-      darkMode: prefs.getBool(AppStrings.keyDarkMode) ?? true,
-      adzanSound: prefs.getString(AppStrings.keyAdzanSound) ?? 'mekah',
-      reminderMinutes: prefs.getInt(AppStrings.keyReminderMinutes) ?? 10,
-      vibration: prefs.getBool(AppStrings.keyVibration) ?? true,
-      notificationsEnabled: prefs.getBool('notifications_enabled') ?? true,
+      city:                 prefs.getString(AppStrings.keyCity)        ?? 'Yogyakarta',
+      darkMode:             prefs.getBool(AppStrings.keyDarkMode)       ?? true,
+      adzanSound:           prefs.getString(AppStrings.keyAdzanSound)   ?? 'mekah',
+      reminderMinutes:      prefs.getInt(AppStrings.keyReminderMinutes) ?? 10,
+      vibration:            prefs.getBool(AppStrings.keyVibration)      ?? true,
+      notificationsEnabled: prefs.getBool('notifications_enabled')      ?? true,
     );
-    // Load saved theme color
-    final colorValue = prefs.getInt('theme_color');
-    if (colorValue != null) {
-      _themeColor = Color(colorValue);
-    }
     _loaded = true;
     notifyListeners();
   }
@@ -57,6 +56,7 @@ class SettingsProvider extends ChangeNotifier {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt(AppStrings.keyReminderMinutes, minutes);
     notifyListeners();
+    await _rescheduleNotifications();
   }
 
   Future<void> toggleVibration() async {
@@ -64,26 +64,27 @@ class SettingsProvider extends ChangeNotifier {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(AppStrings.keyVibration, _settings.vibration);
     notifyListeners();
+    await _rescheduleNotifications();
+  }
+
+  Future<void> toggleNotifications() async {
+    _settings = _settings.copyWith(
+        notificationsEnabled: !_settings.notificationsEnabled);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('notifications_enabled', _settings.notificationsEnabled);
+    notifyListeners();
+
+    if (!_settings.notificationsEnabled) {
+      await NotificationService().cancelAll();
+    } else {
+      await _rescheduleNotifications();
+    }
   }
 
   Future<void> setAdzanSound(String sound) async {
     _settings = _settings.copyWith(adzanSound: sound);
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(AppStrings.keyAdzanSound, sound);
-    notifyListeners();
-  }
-
-  Future<void> setThemeColor(Color color) async {
-    _themeColor = color;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt('theme_color', color.toARGB32());
-    notifyListeners();
-  }
-
-  Future<void> toggleNotifications() async {
-    _settings = _settings.copyWith(notificationsEnabled: !_settings.notificationsEnabled);
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('notifications_enabled', _settings.notificationsEnabled);
     notifyListeners();
   }
 
@@ -98,8 +99,24 @@ class SettingsProvider extends ChangeNotifier {
   Future<void> resetToDefault() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.clear();
+    await NotificationService().cancelAll();
     _settings = const UserSettings();
-    _themeColor = AppColors.primary;
     notifyListeners();
+  }
+
+  Future<void> _rescheduleNotifications() async {
+    if (onGetPrayers == null) return;
+    final prayers = await onGetPrayers!();
+    if (prayers.isEmpty) return;
+
+    final notif = NotificationService();
+    if (_settings.vibration && _settings.notificationsEnabled) {
+      await notif.scheduleAllPrayers(
+        prayers,
+        reminderMinutes: _settings.reminderMinutes,
+      );
+    } else {
+      await notif.cancelAll();
+    }
   }
 }

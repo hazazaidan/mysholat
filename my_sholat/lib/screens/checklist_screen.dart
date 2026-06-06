@@ -1,9 +1,3 @@
-// lib/screens/checklist_screen.dart
-// REVISI: Tambah dialog konfirmasi saat uncheck/batalkan catatan sholat (gambar 4)
-// Perubahan: _buildChecklistItems — onToggle sekarang cek dulu apakah entry sudah done,
-//            jika iya tampilkan dialog konfirmasi sebelum uncheck
-// File terdampak: tidak ada (perubahan lokal di screen ini saja)
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/providers.dart';

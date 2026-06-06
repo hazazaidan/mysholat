@@ -2,18 +2,18 @@
 import 'package:flutter/material.dart';
 
 class AppColors {
-  // ── Primary ──
-  static const Color primary      = Color(0xFF16A34A);
-  static const Color primaryDark  = Color(0xFF15803D);
-  static const Color primaryLight = Color(0xFF22C55E);
+  // ── Primary — Emerald premium ──
+  static const Color primary      = Color(0xFF059669);
+  static const Color primaryDark  = Color(0xFF047857);
+  static const Color primaryLight = Color(0xFF10B981);
 
   // ── Light Mode Backgrounds ──
-  static const Color bgDeep             = Color(0xFFF0F4F1);
+  static const Color bgDeep             = Color(0xFFF0F4F2);
   static const Color bgMain             = Color(0xFFFFFFFF);
   static const Color bgCard             = Color(0xFFFFFFFF);
-  static const Color bgCardActive       = Color(0xFFDCFCE7);
+  static const Color bgCardActive       = Color(0xFFD1FAE5);
   static const Color bgCardBorder       = Color(0xFFE2E8F0);
-  static const Color bgCardBorderActive = Color(0xFFBBF7D0);
+  static const Color bgCardBorderActive = Color(0xFFA7F3D0);
 
   // ── Light Mode Text ──
   static const Color textPrimary   = Color(0xFF0F172A);
@@ -23,12 +23,12 @@ class AppColors {
   static const Color textFaint     = Color(0xFFCBD5E1);
 
   // ── Dark Mode Backgrounds ──
-  static const Color darkBgDeep             = Color(0xFF0A0F0C);
-  static const Color darkBgMain             = Color(0xFF111712);
-  static const Color darkBgCard             = Color(0xFF1A2420);
-  static const Color darkBgCardActive       = Color(0xFF14291E);
-  static const Color darkBgCardBorder       = Color(0xFF243028);
-  static const Color darkBgCardBorderActive = Color(0xFF2D5C3A);
+  static const Color darkBgDeep             = Color(0xFF080E0B);
+  static const Color darkBgMain             = Color(0xFF0F1510);
+  static const Color darkBgCard             = Color(0xFF172019);
+  static const Color darkBgCardActive       = Color(0xFF0E2318);
+  static const Color darkBgCardBorder       = Color(0xFF1E2D22);
+  static const Color darkBgCardBorderActive = Color(0xFF245233);
 
   // ── Dark Mode Text ──
   static const Color darkTextPrimary   = Color(0xFFF1F5F9);
@@ -38,7 +38,7 @@ class AppColors {
   static const Color darkTextFaint     = Color(0xFF334155);
 
   // ── Semantic ──
-  static const Color success = Color(0xFF16A34A);
+  static const Color success = Color(0xFF059669);
   static const Color warning = Color(0xFFCA8A04);
   static const Color error   = Color(0xFFEF4444);
   static const Color info    = Color(0xFF0369A1);

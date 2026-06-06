@@ -58,10 +58,20 @@ class _PermissionScreenState extends State<PermissionScreen> {
 
     if (!mounted) return;
 
-    // ── TAMBAH: sync kota ke SettingsProvider agar Settings ikut update ──
-    await context.read<SettingsProvider>().updateCity(_selectedCity);
+    final settingsProvider = context.read<SettingsProvider>();
+    final prayerProvider   = context.read<PrayerProvider>();
 
-    context.read<PrayerProvider>().loadPrayers(city: _selectedCity);
+    await settingsProvider.updateCity(_selectedCity);
+
+    // ✅ FIX: await loadPrayers (sebelumnya fire-and-forget) +
+    // pass reminderMinutes & vibration dari SettingsProvider
+    await prayerProvider.loadPrayers(
+      city:            _selectedCity,
+      reminderMinutes: settingsProvider.reminderMinutes,
+      vibration:       settingsProvider.vibration,
+    );
+
+    if (!mounted) return;
 
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(builder: (_) => const MainNavigation()),

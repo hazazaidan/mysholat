@@ -18,9 +18,9 @@ class NotificationService {
   static final Int64List _vibrationPattern =
       Int64List.fromList([0, 800, 300, 800, 300, 800]);
 
-  // Channel ID v2 — fresh, tidak terpengaruh channel lama
-  static const String _prayerChannelId   = 'prayer_channel_v2';
-  static const String _reminderChannelId = 'prayer_reminder_channel_v2';
+
+  static const String _prayerChannelId   = 'prayer_channel_v3';
+  static const String _reminderChannelId = 'prayer_reminder_channel_v3';
 
   Future<void> init() async {
     if (_initialized) return;
@@ -46,16 +46,17 @@ class NotificationService {
         .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
     if (androidPlugin == null) return;
 
-    // Hapus channel lama agar tidak ada konflik setting
+    // Hapus semua channel lama (v1, v2, v3) agar tidak ada konflik
     await androidPlugin.deleteNotificationChannel('prayer_channel');
     await androidPlugin.deleteNotificationChannel('prayer_reminder_channel');
+    await androidPlugin.deleteNotificationChannel('prayer_channel_v2');
+    await androidPlugin.deleteNotificationChannel('prayer_reminder_channel_v2');
 
-    // Buat channel baru dengan vibration only
     final prayerChannel = AndroidNotificationChannel(
       _prayerChannelId,
       'Pengingat Sholat',
       description: 'Notifikasi waktu sholat MySholat (getar saja)',
-      importance: Importance.high,
+      importance: Importance.max,          // ← was: high. max = guaranteed vibration
       playSound: false,
       enableVibration: true,
       vibrationPattern: _vibrationPattern,
@@ -89,9 +90,13 @@ class NotificationService {
   }
 
   Future<void> requestPermission() async {
-    await _plugin
-        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
-        ?.requestNotificationsPermission();
+    final androidPlugin = _plugin
+        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+
+    await androidPlugin?.requestNotificationsPermission();
+
+
+    await androidPlugin?.requestExactAlarmsPermission();
   }
 
   Future<void> schedulePrayerNotification({
@@ -121,12 +126,13 @@ class NotificationService {
           _prayerChannelId,
           'Pengingat Sholat',
           channelDescription: 'Notifikasi waktu sholat MySholat (getar saja)',
-          importance: Importance.high,
-          priority: Priority.high,
+          importance: Importance.max,      // ← sync dengan channel
+          priority: Priority.max,          // ← was: high. max = system prioritizes delivery
           playSound: false,
           sound: null,
           enableVibration: true,
           vibrationPattern: _vibrationPattern,
+          channelAction: AndroidNotificationChannelAction.update,
           color: const Color(0xFF10B981),
           enableLights: true,
           ledColor: const Color(0xFF10B981),

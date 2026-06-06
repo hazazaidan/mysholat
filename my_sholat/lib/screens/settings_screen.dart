@@ -59,8 +59,7 @@ class SettingsScreen extends StatelessWidget {
                   onTap: () => _showComingSoon(context, 'Bahasa'),
                 ),
               ]),
-              _buildSectionLabel('TEMA WARNA'),
-              _buildThemePicker(prov, accent),
+              
               _buildSectionLabel('NOTIFIKASI & ADZAN'),
               _buildGroup([
                 _buildToggleItem(
@@ -140,7 +139,6 @@ class SettingsScreen extends StatelessWidget {
       ),
       child: Row(
         children: [
-          // Avatar
           Container(
             width: 52,
             height: 52,
@@ -189,7 +187,6 @@ class SettingsScreen extends StatelessWidget {
               ],
             ),
           ),
-          // Badge aktif
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             decoration: BoxDecoration(
@@ -202,94 +199,6 @@ class SettingsScreen extends StatelessWidget {
                     fontSize: 11,
                     fontWeight: FontWeight.w600,
                     color: accent)),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ── Tema Warna Picker (card baru) ─────────────────────────────────────────
-  Widget _buildThemePicker(SettingsProvider prov, Color accent) {
-    final themes = [
-      {'label': 'Hijau', 'color': const Color(0xFF10B981)},
-      {'label': 'Teal', 'color': const Color(0xFF00BFA5)},
-      {'label': 'Biru', 'color': const Color(0xFF3B82F6)},
-      {'label': 'Ungu', 'color': const Color(0xFF9B59B6)},
-      {'label': 'Amber', 'color': const Color(0xFFF59E0B)},
-      {'label': 'Gold', 'color': const Color(0xFFC9A84C)},
-    ];
-
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 3),
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
-      decoration: BoxDecoration(
-        color: AppColors.bgCard,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.bgCardBorder),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(Icons.palette_rounded, color: accent, size: 15),
-              const SizedBox(width: 8),
-              Text('Pilih Warna Tema',
-                  style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: accent)),
-            ],
-          ),
-          const SizedBox(height: 14),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: themes.map((t) {
-              final color = t['color'] as Color;
-              final label = t['label'] as String;
-              final isSelected = prov.themeColor == color;
-              return GestureDetector(
-                onTap: () => prov.setThemeColor(color),
-                child: Column(
-                  children: [
-                    AnimatedContainer(
-                      duration: const Duration(milliseconds: 200),
-                      width: 38,
-                      height: 38,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: color,
-                        border: Border.all(
-                          color: isSelected ? Colors.white : Colors.transparent,
-                          width: 2.5,
-                        ),
-                        boxShadow: isSelected
-                            ? [
-                                BoxShadow(
-                                    color: color.withValues(alpha: 0.6),
-                                    blurRadius: 10,
-                                    spreadRadius: 1)
-                              ]
-                            : [],
-                      ),
-                      child: isSelected
-                          ? const Icon(Icons.check_rounded,
-                              color: Colors.white, size: 17)
-                          : null,
-                    ),
-                    const SizedBox(height: 5),
-                    Text(label,
-                        style: TextStyle(
-                            fontSize: 9,
-                            color:
-                                isSelected ? color : AppColors.textFaint,
-                            fontWeight: isSelected
-                                ? FontWeight.w600
-                                : FontWeight.normal)),
-                  ],
-                ),
-              );
-            }).toList(),
           ),
         ],
       ),
@@ -327,7 +236,6 @@ class SettingsScreen extends StatelessWidget {
                 letterSpacing: 1.4)),
       );
 
-  // ── Item dengan rounded corners per posisi ────────────────────────────────
   Widget _buildItem({
     required IconData icon,
     required String label,
@@ -456,7 +364,12 @@ class SettingsScreen extends StatelessWidget {
                       : null,
                   onTap: () {
                     prov.updateCity(city);
-                    context.read<PrayerProvider>().loadPrayers(city: city);
+                    
+                    context.read<PrayerProvider>().loadPrayers(
+                      city: city,
+                      reminderMinutes: prov.reminderMinutes,
+                      vibration: prov.vibration,
+                    );
                     Navigator.pop(context);
                   },
                 );
