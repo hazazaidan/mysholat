@@ -3,17 +3,22 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import '../utils/constants.dart';
 import '../utils/date_formatter.dart';
+import 'prayer_time_popup.dart';
 
 class CountdownWidget extends StatefulWidget {
   final Duration? duration;
   final String prayerName;
   final String prayerTime;
+  final String cityName;
+  final VoidCallback? onMarkDone;
 
   const CountdownWidget({
     super.key,
     required this.duration,
     required this.prayerName,
     required this.prayerTime,
+    this.cityName = 'Yogyakarta',
+    this.onMarkDone,
   });
 
   @override
@@ -24,6 +29,7 @@ class _CountdownWidgetState extends State<CountdownWidget>
     with SingleTickerProviderStateMixin {
   Timer? _timer;
   Duration _remaining = Duration.zero;
+  bool _popupShown = false; // ← guard agar popup hanya muncul sekali
 
   late AnimationController _pulseCtrl;
   late Animation<double> _pulseAnim;
@@ -46,7 +52,8 @@ class _CountdownWidgetState extends State<CountdownWidget>
   void didUpdateWidget(CountdownWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.duration != oldWidget.duration && widget.duration != null) {
-      _remaining = widget.duration!;
+      _remaining  = widget.duration!;
+      _popupShown = false; // reset guard saat prayer berganti
     }
   }
 
@@ -57,8 +64,26 @@ class _CountdownWidgetState extends State<CountdownWidget>
       setState(() {
         if (_remaining.inSeconds > 0) {
           _remaining = _remaining - const Duration(seconds: 1);
+        } else if (!_popupShown) {
+          // ← BARU: countdown = 0 → tampilkan popup otomatis
+          _popupShown = true;
+          _showPrayerPopupAuto();
         }
       });
+    });
+  }
+
+  void _showPrayerPopupAuto() {
+    // Pastikan widget masih mounted dan context tersedia
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      PrayerTimePopup.show(
+        context,
+        prayerName: widget.prayerName,
+        prayerTime: widget.prayerTime,
+        cityName: widget.cityName,
+        onMarkDone: widget.onMarkDone,
+      );
     });
   }
 
@@ -71,20 +96,27 @@ class _CountdownWidgetState extends State<CountdownWidget>
 
   @override
   Widget build(BuildContext context) {
-    // Countdown ada di atas kartu hijau → semua teks putih/putih70
-    // Tidak perlu AppColors.text() di sini karena background selalu hijau
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
         const Text(
           'Sholat Berikutnya',
-          style: TextStyle(fontSize: 11, color: Colors.white70, letterSpacing: 1, fontWeight: FontWeight.w500),
+          style: TextStyle(
+            fontSize: 11,
+            color: Colors.white70,
+            letterSpacing: 1,
+            fontWeight: FontWeight.w500,
+          ),
         ),
         const SizedBox(height: 4),
         Text(
           widget.prayerName,
-          style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w700, color: Colors.white),
+          style: const TextStyle(
+            fontSize: 26,
+            fontWeight: FontWeight.w700,
+            color: Colors.white,
+          ),
         ),
         Text(
           widget.prayerTime,
@@ -98,7 +130,7 @@ class _CountdownWidgetState extends State<CountdownWidget>
             style: const TextStyle(
               fontSize: 36,
               fontWeight: FontWeight.w700,
-              color: Colors.white,           // ← putih supaya kontras di atas hijau
+              color: Colors.white,
               letterSpacing: 2,
               fontFeatures: [FontFeature.tabularFigures()],
             ),
@@ -132,7 +164,9 @@ class _CountdownCompactState extends State<CountdownCompact> {
     _timer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (!mounted) return;
       setState(() {
-        if (_remaining.inSeconds > 0) _remaining = _remaining - const Duration(seconds: 1);
+        if (_remaining.inSeconds > 0) {
+          _remaining = _remaining - const Duration(seconds: 1);
+        }
       });
     });
   }

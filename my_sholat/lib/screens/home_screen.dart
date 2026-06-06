@@ -6,6 +6,7 @@ import '../services/notification_service.dart';
 import '../utils/constants.dart';
 import '../widgets/widgets.dart';
 import '../widgets/share_reminder_sheet.dart';
+import '../widgets/prayer_time_popup.dart'; // ← BARU
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -44,9 +45,24 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  // ← BARU: show popup saat card prayer diklik di home
+  void _showPrayerPopup(prayer) {
+    final settingsProv = context.read<SettingsProvider>();
+    final prayerProv   = context.read<PrayerProvider>();
+    PrayerTimePopup.show(
+      context,
+      prayerName: prayer.name,
+      prayerTime: prayer.time,
+      cityName: settingsProv.city,
+      onMarkDone: () {
+        prayerProv.markPrayerDone(prayer.name);
+      },
+    );
+  }
+
   String get _greeting {
     final hour = DateTime.now().hour;
-    if (hour < 5) return 'Assalamu\'alaikum 🌙';
+    if (hour < 5)  return 'Assalamu\'alaikum 🌙';
     if (hour < 12) return 'Selamat Pagi ☀️';
     if (hour < 15) return 'Selamat Siang 🌤';
     if (hour < 18) return 'Selamat Sore 🌅';
@@ -124,8 +140,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           Consumer<PrayerProvider>(
             builder: (_, prov, __) => Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
               decoration: BoxDecoration(
                 color: AppColors.bg(context, active: true),
                 border: Border.all(
@@ -155,11 +170,11 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildNextPrayerCard() {
     return Consumer<PrayerProvider>(
       builder: (_, prov, __) {
-        final next = prov.nextPrayer;
+        final next     = prov.nextPrayer;
         final countdown = prov.countdownToNext ?? Duration.zero;
+        final cityName  = context.read<SettingsProvider>().city; // ← BARU
 
         return Padding(
-          // margin kiri 16, kanan 16 — simetris kiri & kanan
           padding: const EdgeInsets.fromLTRB(16, 14, 0, 0),
           child: Container(
             padding: const EdgeInsets.all(18),
@@ -169,7 +184,6 @@ class _HomeScreenState extends State<HomeScreen> {
                 end: Alignment.bottomRight,
                 colors: [AppColors.primary, AppColors.primaryDark],
               ),
-              // radius semua sudut — simetris kiri & kanan
               borderRadius: BorderRadius.circular(AppDimensions.radiusXl),
             ),
             child: Stack(
@@ -230,11 +244,15 @@ class _HomeScreenState extends State<HomeScreen> {
                             color: Colors.white, strokeWidth: 2)),
                   )
                 else if (next != null)
+                  // ← PERUBAHAN: tambah cityName & onMarkDone
                   CountdownWidget(
                     duration: countdown,
                     prayerName: next.name,
-                    prayerTime:
-                        '${next.time} · ${_formatDate(DateTime.now())}',
+                    prayerTime: '${next.time} · ${_formatDate(DateTime.now())}',
+                    cityName: cityName,
+                    onMarkDone: () {
+                      prov.markPrayerDone(next.name);
+                    },
                   )
                 else
                   const Column(
@@ -253,8 +271,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               color: Colors.white)),
                       SizedBox(height: 4),
                       Text('MasyaAllah, semangat terus!',
-                          style:
-                              TextStyle(fontSize: 13, color: Colors.white70)),
+                          style: TextStyle(fontSize: 13, color: Colors.white70)),
                     ],
                   ),
               ],
@@ -294,7 +311,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return Consumer<ChecklistProvider>(
       builder: (_, prov, __) {
         final completed = prov.completedToday;
-        final rate = prov.completionRateToday;
+        final rate      = prov.completionRateToday;
         return Container(
           margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
           padding: const EdgeInsets.all(14),
@@ -335,7 +352,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: List.generate(5, (i) {
                   final names = ['S', 'D', 'A', 'M', 'I'];
-                  final done = i < completed;
+                  final done  = i < completed;
                   return Container(
                     width: 32,
                     height: 32,
@@ -358,8 +375,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           : Text(names[i],
                               style: TextStyle(
                                   fontSize: 10,
-                                  color: AppColors.text(context,
-                                      level: 'hint'),
+                                  color: AppColors.text(context, level: 'hint'),
                                   fontWeight: FontWeight.w600)),
                     ),
                   );
@@ -397,7 +413,12 @@ class _HomeScreenState extends State<HomeScreen> {
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Column(
             children: prayers
-                .map((p) => PrayerCard(prayer: p, showStatus: false))
+                .map((p) => PrayerCard(
+                      prayer: p,
+                      showStatus: false,
+                      // ← PERUBAHAN: onTap buka popup
+                      onTap: () => _showPrayerPopup(p),
+                    ))
                 .toList(),
           ),
         );
